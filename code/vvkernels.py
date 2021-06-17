@@ -3,6 +3,13 @@ import torch
 import gpytorch
 from matplotlib import pyplot as plt
 
+
+
+
+
+def cholesky_tensor_product(A, B):
+    return 0 
+
 class TensorProductKernel(object):
     """
     Class to get the tensorproduct kernel
@@ -30,6 +37,27 @@ class TensorProductKernel(object):
         
     def get_gaussian_likelihood(self):
         return gpytorch.likelihoods.MultitaskGaussianLikelihood(self.num_tasks)
+    
+    def get_pll(f_target, x,theta_2, theta_1, g):
+        mu = self.get_TPK_mean()
+        K = self.get_TPK_covar_module()()
+        
+        C_ff = K(x)
+        C_f1 = 0
+        C_f2 = 0
+        C_11 = 0
+        C_12 = 0
+        C_22 = 0
+        p_f1 = 0
+        Q_21 = 0
+        Q_f1 = 0
+        Q_f12 = 0
+        
+        
+        m = mu(x)
+        
+        return 0
+        
         
         
 class OptimizationKernel(object):
