@@ -1,128 +1,79 @@
 import math
 import torch
+from torch import nn
+from torch import Tensor
 import gpytorch
+from .kernel import Kernel
 from matplotlib import pyplot as plt
 
 
 
-
-
-
-
-class TensorProductKernel(object):
+class TensorProductKernel(Kernel):
     """
     Class to get the tensorproduct kernel
     """
 
-    def __init__(self, base_means, data_covar_module, num_tasks, rank=1, task_covar_prior=None, **kwargs):
+    def __init__(self, data_covar_module, chol_q,  num_tasks, rank=1, tri_constaint = None, task_covar_prior=None, **kwargs):
         self.num_tasks = num_tasks
         self.rank = rank
-        self.base_means = base_means
         self.data_covar_module = data_covar_module
         self.task_covar_prior = task_covar_prior
         
-        
-    def get_TPK_mean(self):
-    
-        return gpytorch.means.MultitaskMean(self.base_means, self.num_tasks)
-        
-        
-        
-    def get_TPK_covar_module(self):
-        
-        return gpytorch.kernels.MultitaskKernel(
-            self.data_covar_module, self.num_tasks, self.rank)
-        
-        
-    def get_gaussian_likelihood(self):
-        return gpytorch.likelihoods.MultitaskGaussianLikelihood(self.num_tasks)
-        
-        
+        # register the raw parameter
+        self.register_parameter(
+            name='chol_factor', parameter=torch.nn.Parameter(chol_q)
+        )
 
-    
-        
-    def get_ell(f_target, x,theta2, theta1, g_theta, mu, K, cov_noise1, cov_noise2):
-    
-        g_theta1 = g_theta(theta1)
-        g_theta2 = g_theta(theta2)
-        
-        
-       
-        
-        
-        Cff = K.forward(x,x)
-        Cf1 = K.forward(x,g_theta1)
-        Cf2 = K.forward(x, g_theta2)
-        C11 = K(g_theta1, g_theta1.t()) + cov_noise1
-        C12 = K(g_theta1, g_theta2.t())
-        C22 = K(g_theta2, g_theta2.t()) + cov_noise2
-        
-        rhs_g1 = g_theta1 - mu.forward(g_theta1)
+        # set the parameter constraint to be triangular
+        if tri_constaint is None:
+            tri_constaint = True
 
-        pf1 = mu.forward(x) + C11.inv_matmul(rhs_g1, Cf1)
+        # register the constraint
+        self.register_constraint("chol_factor", tri_constraint)
         
-        C21 = C12.t()
-        Q21 = C22 - C11.inv_quad(C12, C21)
-
-        Cf1 = C1f.t()
-        Qf1 = C22 - C11.inv_matmul(C1f, Cf1)
+        @property
+        def cholesky_factor(self):
+            return self.chol_factor_constraint.transform(self.chol_factor)
+            
+        @cholesky_factor.setter
+        def cholesky_factor(self, value):
+            return self._set_cholesky_factor(value)
+            
         
+        def _set_cholesky_factor(self, value):
+            if not torch.is_tensor(value):
+                value = torch.as_tensor(value).to(self.chol_factor)
+                
+            self.initialize(chol_factor = self.chol_factor_constraint.inverse_transform(value))
         
-        
-        second_term_Qf12 = C2f - C11.inv_matmul(C1f, C21)
-        t_second_term_Qf12 = second_term_Qf12.t()
-
-        Qf12_sec_term = Q21.inv_matmul(second_term_Qf12, t_second_term_Qf12)
-        Qf12 = Qf1 - Qf12_sec_term
-
-        
-        inv_quad_Qf12, logdet_Qf12 = Qf12.inv_quad_logdet(f_target - pf1)
-        trace_term_arg = Qf12.inv_matmul(right_tensor = None, left_tensor = Qf1)
-        diag_trace_term_arg = trace_term_arg.diag()
-        trace_term = diag_trace_term_arg .sum() - diag_trace_term_arg.size()
-        
-        ell = -1./2. * ( logdet_Qf12 + inv_quad_Qf12 + trace_term )
-        
-        
-        
-        return ell
-        
-        
-    def get_ell(f_target, x,theta, g_theta, mu, K, cov_noise):
-    
-        g_theta = g_theta(theta)
-        
-        C_x = K.forward(x, x)
-        C_theta = K.forward(g_theta, g_theta.t()) + cov_noise
-        C_x_theta = K.forward(x, g_theta.t())
-        rhs_g = g_theta - mu.forward(g_theta)
-        mu_x = mu.forward(x)
-        
-        m = mu_x + C_theta.inv_matmul(rhs_g, C_x_theta)
-        
-        Q = C_x - C_x_theta.inv_quad(C_x_theta.t())
-        
-        inv_quad_Q, logdet_Q = Q.inv_quad_logdet(f_target - m)
-        
-        pll = -1/2. * (logdet_Q + inv_quad_Q)
-        
-        return pll
-    
 
         
         
+       # self.chol_q = chol_q
+
         
-class OptimizationKernel(object):
-    def get_multitask_mean(self):
-        return 0
+    def forward(self, x1, x2):
+        k = self.data_covar_module
+       # chol_factor = self.chol_q
+        kappa = self.chol_q.mul(self.chol_q.t())
+        d1, d2 = self.chol_q.size()
+        kronecker_kernel = torch.zeros(self.num_tasks, self.num_tasks, d1, d2)
         
-    def get_OK_covar_module(self):
+        for i in range(self.num_tasks):
+            for j in range(self.num_tasks):
+                k_fwd = k.forward(x1, x2)
+                kappa_ij = kappa[i,j]
+                kronecker_kernel[i,j] = torch.kron(k_fwd, kappa_ij)
+            
         
-        return 0
+        return (kronecker_kernel.reshape(self.num_tasks * d1, self.num_tasks*d2))
+        
+
+
+
         
         
-    def get_gaussian_likelihood(self):
-        return 0
+
     
     
   
