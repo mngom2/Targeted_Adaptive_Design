@@ -7,7 +7,7 @@ from copy import deepcopy
 
 from torch.nn import ModuleList
 
-from .mean import Mean
+from gpytorch.means import Mean
 
 
 from functools import partial

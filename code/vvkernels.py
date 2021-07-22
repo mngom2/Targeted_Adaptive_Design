@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch import Tensor
 import gpytorch
-from .kernel import Kernel
+from gpytorch.kernel import Kernel
 from matplotlib import pyplot as plt
 
 
