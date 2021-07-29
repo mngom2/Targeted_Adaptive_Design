@@ -7,7 +7,7 @@ from copy import deepcopy
 
 from torch.nn import ModuleList
 
-from gpytorch.means import Mean
+from gpytorch.means import MultitaskMean
 
 
 from functools import partial
@@ -15,28 +15,25 @@ from matplotlib import pyplot as plt
 
 
 
-class TensorProductSubMean(Mean):
+class TensorProductSubMean(MultitaskMean):
     """
     Class to get the tensorproduct mean
     """
 
-    def __init__(self, agg_data, C, num_tasks, **kwargs):
-        self.num_tasks = num_tasks
-        self.agg_data = agg_data
-        self.kermatrix = C
-
+    def __init__(self, base_means, num_tasks, **kwargs):
+        super().__init__(base_means, num_tasks)
+       # self.kermatrix = _C
         
         
-    def forward(self):
-      
-        C_ = self.kermatrix
-        self.agg_data = x
-        one_vec = torch.ones(C_.shape[1], 1)
-        den = gpytorch.inv_quad(C_, one_vec)
-        num = gpytorch.inv_matmul(C_, x, one_vec.t())
-        
-        return (num/den) * one_vec
-        
+#    def forward(self, input):
+#
+#        C = self.kermatrix
+#        one_vec = torch.ones(C.shape[1], 1)
+#        den = gpytorch.inv_quad(C, one_vec)
+#        num = gpytorch.inv_matmul(C, input, one_vec.t())
+#
+#        return (num/den) * one_vec
+#
         
         
         

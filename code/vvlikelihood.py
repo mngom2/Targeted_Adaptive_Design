@@ -3,81 +3,109 @@ import torch
 from torch import nn
 from torch import Tensor
 import gpytorch
+from gpytorch.likelihoods import MultitaskGaussianLikelihood
 from matplotlib import pyplot as plt
 
 
 
-class TensorProductLikelihood():
+class TensorProductLikelihood(MultitaskGaussianLikelihood):
     """
     Class to get the Likelihood
     """
 
-    def __init__(self, data_covar_module, _agg_data, x_new, num_tasks, _cov_noise1, _cov_noise2, rank=1, task_covar_prior=None, **kwargs):
-        self.num_tasks = num_tasks
-        self.rank = rank
-        self.data_covar_module = data_covar_module
-        self.task_covar_prior = task_covar_prior
-        self.agg_data = _agg_data
+    def __init__(self, x_new, num_tasks,
+        task_prior=None,
+        batch_shape=torch.Size(),
+        noise_prior=None,
+        noise_constraint=None,
+        has_global_noise=True,
+        has_task_noise=True, _cov_noise1 = None, _cov_noise2 = None, rank=1, task_covar_prior=None, **kwargs):
+        super().__init__(num_tasks, rank,
+        task_prior,
+        batch_shape,
+        noise_prior,
+        noise_constraint,
+        has_global_noise,
+        has_task_noise=True)
+
         self.cov_noise1 = _cov_noise1
         self.cov_noise2 = _cov_noise2
-        # register the raw parameter
-        self.register_parameter(
-            name='new_setting', parameter=torch.nn.Parameter(x_new)
-        )
+
+
+    def get_hpll(self, out_data, g_theta1,mu, K):
+#        g_theta1 = g_theta(theta1)
+        
+        C11 = K.forward(g_theta1, g_theta1.t())
+        out_data = out_data.reshape(C11.shape[1], 1)
+        m0 = mu.forward(g_theta1)
+        m0 = m0.reshape(out_data.shape[0], 1)
+#        one_vec = torch.ones(C11.shape[1], 1)
+#        den = gpytorch.inv_quad(C11, one_vec)
+#        num = gpytorch.inv_matmul(C11, out_data, one_vec.t())
+#
+#        m0 = (num/den) * one_vec
+        
+        
+        inv_quad_C11 = gpytorch.inv_quad(C11, out_data - m0)
+        logdet_C11 = gpytorch.logdet(C11)
+        return -.5 * logdet_C11 - .5 * inv_quad_C11
+        
 
         
-        
-
-        
-    def get_ell(self,f_target, x, theta1, theta2, g, g_theta, mu, K): #, cov_noise1, cov_noise2):
+    def get_ell(self, agg_data, f_target, x, g_theta1, g_theta2, mu, K): #, cov_noise1, cov_noise2):
 
         """
         computes the expected ll
 
         """
-#        theta2 = self.theta2
-        g_theta1 = g_theta(theta1)
-        g_theta2 = g_theta(theta2)
-        agg_data = self.agg_data
+
+#        g_theta1 = g_theta(theta1)
+#        g_theta2 = g_theta(theta2)
         cov_noise1 = self.cov_noise1
         cov_noise2 = self.cov_noise2
 
 
 
 
-        Cff = K(x,x)
-        Cf1 = K(x,g_theta1.t())
-        Cf2 = K(x, g_theta2.t())
-        C11 = K(g_theta1, g_theta1.t()) + cov_noise1
+        Cff = K.forward(x,x)
+        Cf1 = K.forward(x,g_theta1.t())
+        Cf2 = K.forward(x, g_theta2.t())
+        C11 = K.forward(g_theta1, g_theta1.t()) #+ cov_noise1
 
-        C12 = K(g_theta1, g_theta2.t())
-        C22 = K(g_theta2, g_theta2.t()) + cov_noise2
+        C12 = K.forward(g_theta1, g_theta2.t())
+        C22 = K.forward(g_theta2, g_theta2.t()) #+ cov_noise2
 
-        mean_data = mu(C11, agg_data)
-        rhs_g1 = g - mean_data
+        mean_data = mu.forward(agg_data)
+        mean_data = mean_data.reshape(mean_data.shape[0] * mean_data.shape[1], 1)
+        agg_data = agg_data.reshape(mean_data.shape[0], 1)
+        rhs_g1 =  agg_data- mean_data #g-S
+      
+        
+        
+        mean_x = mu.forward(x)
+        mean_x = mean_x.reshape(mean_x.shape[0] * mean_x.shape[1], 1)
+
+        pf1 = mean_x + gpytorch.inv_matmul(C11, rhs_g1, Cf1)
+
         C21 = C12.t()
-
-        Q21 = C22 - gpytorch.inv_quad(C11, C12)
-
-        pf1 = mean_data + gpytorch.inv_matmul(C11, rhs_g1, Cf1)
-
-        C21 = C12.t()
+        print(C22.shape)
         Q21 = C22 - gpytorch.inv_quad(C11, C12)
 
         C1f = Cf1.t()
-        Qf1 = C22 - gpytorch.inv_matmul(C11, C1f, Cf1)
+        Qf1 = Cff - gpytorch.inv_quad(C11, C1f) #
 
 
         C2f = Cf2.t()
         second_term_Qf12 = C2f - gpytorch.inv_matmul(C11,C1f, C21)
-        t_second_term_Qf12 = second_term_Qf12.t()
+      #  t_second_term_Qf12 = second_term_Qf12.t()
+    
 
-
-        Qf12_sec_term = gpytorch.inv_matmul(Q21, second_term_Qf12, t_second_term_Qf12)
+        Qf12_sec_term = gpytorch.inv_quad(Q21, second_term_Qf12)
         Qf12 = Qf1 - Qf12_sec_term
 
 
-        inv_quad_Qf12, logdet_Qf12 = gpytorch.inv_quad_logdet(Qf12, f_target - pf1)
+        inv_quad_Qf12 = gpytorch.inv_quad(Qf12, f_target - pf1)
+        logdet_Qf12 = gpytorch.logdet(Qf12)
         # simplified trace expression
         trace_term_arg = gpytorch.inv_matmul(Qf12,Qf1)
         diag_trace_term_arg = trace_term_arg.diag()
