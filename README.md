@@ -1,1 +1,1 @@
-# Targeted_Adaptative_Design
+# Targeted_Adaptive_Design
