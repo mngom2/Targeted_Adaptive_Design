@@ -107,14 +107,17 @@ class TensorProductKernel(MultitaskKernel):
         chol_factor[0,0] = self.chol_11
         chol_factor[1,1] = self.chol_22
         chol_factor[1,0] = self.chol_21
-    
-        kappa = gpytorch.matmul(chol_factor, chol_factor.t())
       
-        x1 = x1.reshape(x1.shape[0], 1)
-        x2 = x2.reshape(x2.shape[0], 1)
+        kappa = gpytorch.matmul(chol_factor, chol_factor.t())
+    
+        #x1 = x1.reshape(x1.shape[0], 1)
+        #x2 = x2.reshape(x2.shape[0], 1)
+        #y2 = x2
 
-        k_fwd = k.forward(x1, x2)
+        k_fwd = (k.forward(x1, x2))
+        #print(k_fwd)
         kronecker_kernel = torch.kron(k_fwd, kappa)
+
         return kronecker_kernel
 #
 #        for i in range(self.num_tasks):

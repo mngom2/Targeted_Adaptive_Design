@@ -26,8 +26,8 @@ class TensorProductSubMean(MultitaskMean):
         
         
 #    def forward(self, input):
-#
-#        C = self.kermatrix
+##
+#        C = vvk.
 #        one_vec = torch.ones(C.shape[1], 1)
 #        den = gpytorch.inv_quad(C, one_vec)
 #        num = gpytorch.inv_matmul(C, input, one_vec.t())
