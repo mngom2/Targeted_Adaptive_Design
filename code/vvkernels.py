@@ -14,7 +14,7 @@ class TensorProductKernel(MultitaskKernel):
     Class to get the tensorproduct kernel
     """
 
-    def __init__(self, data_covar_module, chol_11, chol_21, chol_22,  num_tasks, rank=1, pos_constraint = None, tri_constaint = None, task_covar_prior=None, **kwargs):
+    def __init__(self, data_covar_module,  num_tasks, rank=1, pos_constraint = None, tri_constaint = None, task_covar_prior=None, **kwargs):
         super().__init__(data_covar_module, num_tasks, rank, task_covar_prior = None, **kwargs)
 #        self.num_tasks = num_tasks
 #        self.rank = rank
@@ -26,85 +26,100 @@ class TensorProductKernel(MultitaskKernel):
        
 
         # set the parameter constraint to be triangular
-        if pos_constraint is None:
-            pos_constraint = Positive()
-            
-        
-                # register the raw parameter
-        self.register_parameter(
-            name='raw_chol_11', parameter=torch.nn.Parameter(chol_11)
-        )
-     # register the raw parameter
-        self.register_parameter(
-            name='raw_chol_22', parameter=torch.nn.Parameter(chol_22)
-        )
-        
-        
-        # register the raw parameter
-        self.register_parameter(
-            name='raw_chol_21', parameter=torch.nn.Parameter(chol_21)
-        )
-        
-        
+#        if pos_constraint is None:
+#            pos_constraint = Positive()
+#
+#
+#                # register the raw parameter
+#        self.register_parameter(
+#            name='raw_chol_11', parameter=torch.nn.Parameter(chol_11)
+#        )
+#     # register the raw parameter
+#        self.register_parameter(
+#            name='raw_chol_22', parameter=torch.nn.Parameter(chol_22)
+#        )
+#
+#
+#        # register the raw parameter
+#        self.register_parameter(
+#            name='raw_chol_21', parameter=torch.nn.Parameter(chol_21)
+#        )
+#
+#
+#
+#
+#        # register the constraint
+#        self.register_constraint("raw_chol_11", pos_constraint)
+#                # register the constraint
+#        self.register_constraint("raw_chol_22", pos_constraint)
+#
+#        @property
+#        def chol_11(self):
+#            return self.raw_chol_11_constraint.transform(self.raw_chol_11)
+#
+#        @chol_11.setter
+#        def chol_11(self, value):
+#            return self._set_chol_11(value)
+#
+#
+#        def _set_chol_11(self, value):
+#            if not torch.is_tensor(value):
+#                value = torch.as_tensor(value).to(self.raw_chol_11)
+#            self.initialize(raw_chol_11 = self.raw_chol_11_constraint.inverse_transform(value))
+#
+#
+#
+#
+#
+#
+#        @property
+#        def chol_22(self):
+#            return self.raw_chol_22_constraint.transform(self.raw_chol_22)
+#
+#        @chol_22.setter
+#        def chol_22(self, value):
+#            return self._set_chol_22(value)
+#
+#
+#        def _set_chol_22(self, value):
+#            if not torch.is_tensor(value):
+#                value = torch.as_tensor(value).to(self.raw_chol_22)
+#
+#            self.initialize(raw_chol_22= self.raw_chol_22_constraint.inverse_transform(value))
+#
+#
+#
+#        @property
+#        def chol_21(self):
+#            return (self.raw_chol_21)
+#
+#        @chol_21.setter
+#        def chol_21(self, value):
+#            return self._set_chol_21(value)
+#
+#
+#        def _set_chol_21(self, value):
+#            if not torch.is_tensor(value):
+#                value = torch.as_tensor(value).to(self.raw_chol_21)
+#
+#            self.initialize(raw_chol_21= (value))
 
+        
+        
+    def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **params):
+        if last_dim_is_batch:
+            raise RuntimeError("MultitaskKernel does not accept the last_dim_is_batch argument.")
+        covar_i = self.task_covar_module.covar_matrix #.evaluate()
+            
+        covar_i = covar_i.evaluate()
+        if len(x1.shape[:-2]):
+            covar_i = covar_i.repeat(*x1.shape[:-2], 1, 1)
+        covar_x = (self.data_covar_module.forward(x1, x2, **params))
+        if (covar_x.shape[0] == covar_x.shape[1]):
+            covar_x = covar_x + (1e-5) * torch.eye(covar_x.shape[0])
+        res = gpytorch.lazy.lazify(torch.kron(covar_x, covar_i))
 
-        # register the constraint
-        self.register_constraint("raw_chol_11", pos_constraint)
-                # register the constraint
-        self.register_constraint("raw_chol_22", pos_constraint)
-        
-        @property
-        def chol_11(self):
-            return self.raw_chol_11_constraint.transform(self.raw_chol_11)
-            
-        @chol_11.setter
-        def chol_11(self, value):
-            return self._set_chol_11(value)
-            
-        
-        def _set_chol_11(self, value):
-            if not torch.is_tensor(value):
-                value = torch.as_tensor(value).to(self.raw_chol_11)
-            self.initialize(raw_chol_11 = self.raw_chol_11_constraint.inverse_transform(value))
-            
-            
-
-
-        
-        
-        @property
-        def chol_22(self):
-            return self.raw_chol_22_constraint.transform(self.raw_chol_22)
-            
-        @chol_22.setter
-        def chol_22(self, value):
-            return self._set_chol_22(value)
-            
-        
-        def _set_chol_22(self, value):
-            if not torch.is_tensor(value):
-                value = torch.as_tensor(value).to(self.raw_chol_22)
-                
-            self.initialize(raw_chol_22= self.raw_chol_22_constraint.inverse_transform(value))
-        
-        
-        
-        @property
-        def chol_21(self):
-            return (self.raw_chol_21)
-            
-        @chol_21.setter
-        def chol_21(self, value):
-            return self._set_chol_21(value)
-            
-        
-        def _set_chol_21(self, value):
-            if not torch.is_tensor(value):
-                value = torch.as_tensor(value).to(self.raw_chol_21)
-                
-            self.initialize(raw_chol_21= (value))
-
-        
+        return res.diag() if diag else res
         
        # self.chol_q = chol_q
 
@@ -154,16 +169,7 @@ class TensorProductKernel(MultitaskKernel):
 
 #
 #
-    def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **params):
-        if last_dim_is_batch:
-            raise RuntimeError("MultitaskKernel does not accept the last_dim_is_batch argument.")
-        covar_i = self.task_covar_module.covar_matrix.evaluate()
-        if len(x1.shape[:-2]):
-            covar_i = covar_i.repeat(*x1.shape[:-2], 1, 1)
-        covar_x = (self.data_covar_module.forward(x1, x2, **params))
-        res = gpytorch.lazy.lazify(torch.kron(covar_x, covar_i))
-        
-        return res.diag() if diag else res
+
     
     
   

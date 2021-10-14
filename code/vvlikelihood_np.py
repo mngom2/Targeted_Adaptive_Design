@@ -78,7 +78,7 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         
         cov_noise1 = likelihood._shaped_noise_covar([g_theta1.shape[0],g_theta1.shape[0]]).evaluate()
         cov_noise2 = likelihood._shaped_noise_covar([g_theta2.shape[0],  g_theta2.shape[0]]).evaluate()
-
+        #print(cov_noise1)
          
         mu = model.mean_module
         K = model.covar_module
@@ -107,94 +107,108 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
       
         mean_x = torch.flatten(mean_x)  #mean_x.reshape(mean_x.shape[0] * mean_x.shape[1], 1)
         
-        pf1 = mean_x.reshape(mean_x.shape, 1) + C11.inv_matmul(rhs_g1, Cf1.evaluate())
+        C11_np = C11.evaluate()
+        L_C11_np = torch.linalg.cholesky(C11_np)
+        
+        
+        
+        Cf1_np = Cf1.evaluate()
+        rhs_g1_np = rhs_g1
+        inv_L_C11_np = torch.linalg.inv(L_C11_np)
+        y_pf1 = torch.matmul(inv_L_C11_np, rhs_g1_np)
+        t_inv_L_C11_np = torch.transpose(inv_L_C11_np,0,1)
+        x_pf1 = torch.matmul(t_inv_L_C11_np, y_pf1)
+        xx_pf1 = torch.matmul(Cf1_np, x_pf1)
+        
+        pf1 = mean_x.reshape(mean_x.shape, 1)+ xx_pf1 #C11.inv_matmul(rhs_g1, Cf1.evaluate())
          
         C21 = C12.t()
-        Q21 = C22 - C11.inv_matmul(C12.evaluate(), C21.evaluate())
-        Q21 = Q21.add_jitter(1e-8)
+        
+        C12_np = C12.evaluate()
+        C21_np = C21.evaluate()
+        
+        y_Q21 = torch.matmul(inv_L_C11_np, C12_np)
+        x_Q21 = torch.matmul(t_inv_L_C11_np, y_Q21)
+        xx_Q21 = torch.matmul(C21_np, x_Q21)
+        
+        Q21 = C22.evaluate() - xx_Q21     #C11.inv_matmul(C12.evaluate(), C21.evaluate())
 
         
         C1f = Cf1.t()
-        Qf1 = Cff - C11.inv_matmul(C1f.evaluate(), Cf1.evaluate()) #
+        
+        C1f_np = C1f.evaluate()
+        Cf1_np = Cf1.evaluate()
+        
+        y_Qf1 = torch.matmul(inv_L_C11_np, C1f_np)
+        x_Qf1 = torch.matmul(t_inv_L_C11_np, y_Qf1)
+        xx_Qf1 = torch.matmul(Cf1_np, x_Qf1)
+        
+        
+        
+        Qf1 = Cff.evaluate() - xx_Qf1  #C11.inv_matmul(C1f.evaluate(), Cf1.evaluate()) #
         
        
 
         C2f = Cf2.t()
-        second_term_Qf12 =  C2f - C11.inv_matmul(C1f.evaluate(), C21.evaluate())
+        C2f_np = C2f.evaluate()
+        y_second_term_Qf12 = torch.matmul(inv_L_C11_np, C1f_np)
+        x_second_term_Qf12 = torch.matmul(t_inv_L_C11_np, y_second_term_Qf12)
+        xx_second_term_Qf12 = torch.matmul(C21_np, x_second_term_Qf12)
+        
+        
+        second_term_Qf12 =  C2f_np - xx_second_term_Qf12  #C2f - C11.inv_matmul(C1f.evaluate(), C21.evaluate())
+        
+        
+        
 
         try:
-            Qf12_sec_term = Q21.inv_matmul(second_term_Qf12.evaluate(), second_term_Qf12.t().evaluate())
+            L_Q21_np = torch.linalg.cholesky(Q21 + 1e-6 * torch.eye(Q21.shape[0]))
+            inv_L_Q21_np = torch.linalg.inv(L_Q21_np)
+            t_inv_L_Q21_np = torch.transpose(inv_L_Q21_np, 0, 1)
+            y_Qf12_sec_term = torch.matmul(inv_L_Q21_np, second_term_Qf12)
+            x_Qf12_sec_term = torch.matmul(t_inv_L_Q21_np, y_Qf12_sec_term)
+            Qf12_sec_term =  torch.matmul(torch.transpose(second_term_Qf12,0,1), x_Qf12_sec_term)      #Q21.inv_matmul(second_term_Qf12.evaluate(), second_term_Qf12.t().evaluate())
         except:
-            print('gtheta1')
-            print(g_theta1)
-            print('gtheta2')
-            print(g_theta2)
-            print('nugget')
-            print(cov_noise1)
-            print(C22)
-            print(C11.inv_matmul(C12.evaluate(), C21.evaluate()))
             print(Q21)
-            print(pf1)
-            print(torch.det(C11))
-        
             for param_name, param in model.named_parameters():
                 print(param_name)
                 print(param)
             raise
         
         Qf12 = Qf1 - Qf12_sec_term
-        Qf12 = Qf12.add_jitter(1e-8)
         
         pf1 = pf1.reshape(f_target.shape)
         
         
         try:
-            inv_quad_Qf12 = Qf12.inv_matmul(f_target - pf1,  (f_target - pf1).t())
+            L_Qf12_np = torch.linalg.cholesky(Qf12 + 1e-6* torch.eye(Qf12.shape[0]))
+            inv_L_Qf12_np = torch.linalg.inv(L_Qf12_np)
+            t_inv_L_Qf12_np = torch.transpose(inv_L_Qf12_np, 0, 1)
+            y_Qf12 = torch.matmul(inv_L_Qf12_np, f_target - pf1)
+            x_Qf12 = torch.matmul(t_inv_L_Qf12_np, y_Qf12)
+            inv_quad_Qf12 = torch.matmul(torch.transpose((f_target- pf1), 0, 1), x_Qf12)  #Qf12.inv_matmul(f_target - pf1,  (f_target - pf1).t())
         except:
-            print('gtheta1')
-            print(g_theta1)
-            print('gthe2')
-            print(g_theta2)
-            print('nugget')
-            print(cov_noise1)
-            print('Qf12')
             print(Qf12)
-            print('Qf12_sec_term')
-            print(Qf12_sec_term)
-            print('Qf1')
-            print(Qf1)
-            print('Cff')
-            print(Cff)
-            print('invC11C1f')
-            print(C11.inv_matmul(C1f.evaluate(), C21.evaluate()))
-            print('C1f')
-            print(C1f)
-            print('Cf1')
-            print(Cf1)
-            print('C22')
-            print(C22)
-            print(Q21)
-            print(pf1)
-
             for param_name, param in model.named_parameters():
                 print(param_name)
                 print(param)
             
             raise
      
-        logdet_Qf12 = Qf12.logdet()
+        logdet_Qf12 =  torch.log(torch.linalg.det(Qf12))  #Qf12.logdet()
         # simplified trace expression
-        trace_term_arg = Qf12.matmul(Qf12_sec_term)
+        trace_term_arg = torch.matmul(Qf12, Qf12_sec_term)  #Qf12.matmul(Qf12_sec_term)
         #trace_term_arg = gpytorch.inv_matmul(Qf12,Qf1)
-        diag_trace_term_arg = trace_term_arg.diag()
+        diag_trace_term_arg =  torch.diag(trace_term_arg)  #trace_term_arg.diag()
 
-        trace_term = diag_trace_term_arg.sum()
+        trace_term = torch.sum(diag_trace_term_arg)   #diag_trace_term_arg.sum()
         #N = Qf12.shape[0]
 
         ell = -1./2. * ( logdet_Qf12 + inv_quad_Qf12 + trace_term)
         lower_bound = torch.zeros(pf1.shape)
         upper_bound = torch.zeros(pf1.shape)
        
+        #pf1 = Tensor(pf1)
         for i in range(pf1.shape[0]):
             lower_bound[i] = pf1[i] -  torch.sqrt(Qf1[i,i])
             upper_bound[i] = pf1[i] +  torch.sqrt(Qf1[i,i])
@@ -219,9 +233,9 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         Cff = K.forward(x, x)
         
         
-        #cov_noise = likelihood._shaped_noise_covar([g_theta.shape[0],g_theta.shape[0]]).evaluate()
+        cov_noise = likelihood._shaped_noise_covar([g_theta.shape[0],g_theta.shape[0]]).evaluate()
         
-        C11 = K.forward(g_theta, g_theta) #+ cov_noise
+        C11 = K.forward(g_theta, g_theta) + cov_noise
         Cf1 = K.forward(x, g_theta)
         rhs_g = agg_data - (mu.forward(g_theta)).flatten()
         mu_x = mu.forward(x)
@@ -233,11 +247,11 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
 
 
         Q = Cff - C11.inv_matmul(C1f.evaluate(), Cf1.evaluate())
-        m = m.reshape(f_target.shape)
+
         inv_quad_Q, logdet_Q = Q.inv_quad_logdet(f_target - m, logdet = True)
 
-        #pll = 1./2. * (logdet_Q + inv_quad_Q)
-        pll = torch.linalg.norm((f_target - m), ord = 2)  #
+        pll = -1/2. * (logdet_Q + inv_quad_Q)
+        
         lower_bound = torch.zeros(m.shape)
         upper_bound = torch.zeros(m.shape)
        
