@@ -32,16 +32,23 @@ from ray.tune.schedulers import ASHAScheduler
 
 
 
+
+
 class MultitaskGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, num_base_kernels):
+    def __init__(self, train_x, train_y, likelihood,num_base_kernels):
         super(MultitaskGPModel, self).__init__(train_x, train_y, likelihood)
         a = torch.ones(2,2)
         chol_q = torch.tril(a)
-        self.mean_module = vvm.TensorProductSubMean(gpytorch.means.ConstantMean(), num_tasks = 2)
+        self.mean_module = vvm.TensorProductSubMean(gpytorch.means.ConstantMean(), num_tasks = 2)  # gpytorch.means.MultitaskMean(gpytorch.means.LinearMean(2), num_tasks = 2)     #vvm.TensorProductSubMean(gpytorch.means.LinearMean(2), num_tasks = 2)#vvm.TensorProductSubMean(gpytorch.means.ConstantMean(), num_tasks = 2)  #
         base_kernels = []
         for i in range(num_base_kernels):
-            base_kernels.append(vvk_rbf.vvkRBFKernel())
-        self.covar_module = svvk.SepTensorProductKernel(base_kernels,num_tasks = 2)
+            base_kernels.append(( (gpytorch.kernels.MaternKernel() ) )) #gpytorch.kernels.PolynomialKernel(4)  ##gpytorch.kernels.MaternKernel()# (vvk_rbf.vvkRBFKernel())
+#         base_kernels2 = []
+#         for i in range(num_base_kernels):
+#             base_kernels2.append(gpytorch.kernels.PolynomialKernel(5))
+            
+        self.covar_module = svvk.SepTensorProductKernel(base_kernels,num_tasks = 2, rank = 2)
+       # self.covar_module = gpytorch.kernels.LCMKernel(base_kernels,num_tasks = 2, rank =2)
 
 #\         self.covar_module = gpytorch.kernels.MultitaskKernel(
 #             gpytorch.kernels.RBFKernel(), num_tasks=2, rank=1
@@ -50,8 +57,13 @@ class MultitaskGPModel(gpytorch.models.ExactGP):
 
     def forward(self, x):
         mean_x = self.mean_module(x)
-        covar_x = self.covar_module(x,x)
+        covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
+    
+    
+
+
+
 
 
 
@@ -75,12 +87,13 @@ def hyper_opti(config,checkpoint_dir=None, data_dir_train = None, data_dir_val =
     
     model = MultitaskGPModel(g_theta1, agg_data, likelihood, num_base_kernels = config["num_bk"])
 
-    optimizer = torch.optim.SGD(model.parameters(),  lr=config["lr"])  # Includes GaussianLikelihood parameters
+    optimizer = torch.optim.Adam(model.parameters(),  lr=config["lr"])  # Includes GaussianLikelihood parameters
     
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
-    for epoch in range(10):
-        model.train()
-        likelihood.train()
+    model.train()
+    likelihood.train()
+    for epoch in range(hp_iter):
+        
         #for i in range( hp_iter):
         optimizer.zero_grad()
         output = model(g_theta1)
@@ -88,28 +101,29 @@ def hyper_opti(config,checkpoint_dir=None, data_dir_train = None, data_dir_val =
 
                 #loss = -likelihood.get_mll(agg_data,output_ll)
         loss = -mll(output, agg_data)
+        
         loss.backward()
 
         #print('Iter %d/%d - Loss hyperparam: %.3f' % (i + 1, hp_iter, loss.item()))
         optimizer.step()
-        with torch.no_grad():
-            model.eval()
-            likelihood.eval()
-            predictions = likelihood(model(val_theta1))
-            val_loss = torch.norm((predictions.mean).flatten() - val_agg_data)
+#        with torch.no_grad():
+#            model.eval()
+#            likelihood.eval()
+#            predictions = likelihood(model(val_theta1))
+#            val_loss = torch.norm((predictions.mean).flatten() - val_agg_data)
      
 #
         with tune.checkpoint_dir(epoch) as checkpoint_dir:
             path = os.path.join(checkpoint_dir, "checkpoint")
             torch.save((model, likelihood), path)
 
-        tune.report(loss=(loss.detach()))
+        tune.report(loss=float(loss.detach().numpy()))
 
     print("Finished Training")
 
 
 
-def main(num_samples=30, max_num_epochs=10):
+def main(num_samples=30, max_num_epochs=200):
 
 
     #data training and val
@@ -159,7 +173,7 @@ def main(num_samples=30, max_num_epochs=10):
 
 if __name__ == "__main__":
     # You can change the number of GPUs per trial here:
-    main(num_samples=10, max_num_epochs=10)
+    main(num_samples=30, max_num_epochs=200)
 
 
     
