@@ -1,0 +1,1 @@
+from .predstrategies import GPprediction

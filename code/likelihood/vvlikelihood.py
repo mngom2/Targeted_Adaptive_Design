@@ -18,9 +18,12 @@ from matplotlib import pyplot as plt
 
 
 
+#torch.set_default_dtype(torch.float64)
+
+
 #gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False)
 #with torch.no_grad():
-gpytorch.settings.fast_computations(covar_root_decomposition=True, log_prob=True, solves=False)
+gpytorch.settings.fast_computations(covar_root_decomposition = True, log_prob = True, solves = False)
 gpytorch.settings.max_cg_iterations(100)
 gpytorch.settings.max_preconditioner_size(100)
 max_cholesky_size._set_value(3000)
@@ -34,27 +37,16 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
     """
     Class to get the Likelihood
     """
-
-
-
-
-
-
     def __init__(self, num_tasks,
         task_prior=None,
         batch_shape=torch.Size(),
         noise_prior=None,
         noise_constraint=None,
         has_global_noise=True,
-        has_task_noise=False, _cov_noise1 = None, _cov_noise2 = None, rank=0, task_covar_prior=None, **kwargs):
+        has_task_noise=False, _cov_noise1 = None, _cov_noise2 = None, rank=0, **kwargs):
         
-        super().__init__(num_tasks, rank,
-        task_prior,
-        batch_shape,
-        noise_prior,
-        noise_constraint,
-        has_global_noise,
-        has_task_noise=False)
+        super().__init__(num_tasks,
+        rank)
 
         self.cov_noise1 = _cov_noise1
         self.cov_noise2 = _cov_noise2
@@ -166,6 +158,7 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         N = C11.shape[0]
 
         ell = -1./2. * (  logdet_Qf12 +  inv_quad_Qf12 +   trace_term ) #- (Qf1[0,0]**2 + Qf1[0,0]**2)
+        ell = ell -  barrierFunction(x, -3., 3., .01)
         lower_bound = torch.zeros(pf1.shape)
         upper_bound = torch.zeros(pf1.shape)
        
@@ -173,19 +166,35 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
             lower_bound[i] = pf1[i] -  torch.sqrt(Qf1[i,i])
             upper_bound[i] = pf1[i] + torch.sqrt(Qf1[i,i])
         
-        return ell, lower_bound, upper_bound, torch.sqrt(Qf1[i,i]), Qf12
+        return ell, pf1, Qf1, Qf12
         
-    def get_inv_quad(self, mat, data, g_theta, model, noise_value):
+    def get_inv_quad(self, mat, fdata, g_theta, data_12, x, model, noise_value):
 
-        cov_noise1 =  noise_value * torch.eye(data.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
-
+        cov_noise =  noise_value * torch.eye(data_12.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
+        #cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
+        K = model.covar_module
+        mu = model.mean_module
+        Cf1 = K.forward(x, g_theta)
+        
+        C11 = K.forward(g_theta, g_theta, add_jitter = True) + cov_noise
+        
+        rhs_g = data_12 - torch.flatten(mu.forward(g_theta))
+        rhs_g = rhs_g.reshape(rhs_g.shape, 1)
+        
+        mean_x = mu.forward(x)
+      
+        mean_x = torch.flatten(mean_x)
+       
+        pf12 = mean_x.reshape(mean_x.shape, 1) + C11.inv_matmul(rhs_g, Cf1.evaluate())
     
-        m0 = model.mean_module.forward(g_theta)
+  
         
-        m0 = m0.reshape(data.shape)
-        diff = data - m0
+        pf12 = pf12.reshape(fdata.shape)
+        
+        diff = fdata - pf12
+        #print(diff.shape)
         #diff = diff.reshape(diff.shape[0], 1)
-        inv_quad, logdet_C11 = gpytorch.inv_quad_logdet(mat.evaluate(), diff.unsqueeze(-1), logdet=True)
+        inv_quad, logdet_C11 = gpytorch.inv_quad_logdet(mat.evaluate(), diff, logdet=True)
         return inv_quad
 
 
@@ -261,7 +270,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         Cff = K.forward(x,x, add_jitter = True)  #+ cov_noisex
        
         Cf1 = K.forward(x,g_theta1)
-        C11 = K.forward(g_theta1, g_theta1, add_jitter = True) +cov_noise1
+        C11 = K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise1
         
         
         
@@ -340,9 +349,9 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
         
 #        print(pf1 - f_target)
-        return ell, pf1, Qf12
+        return ell, pf1, Qf1, Qf12
 
-    def get_pll(self, f_target, x,g_theta, agg_data, model, likelihood):
+    def get_pll(self, f_target, x,g_theta, agg_data, model, likelihood,  noise_value):
 
         """
         computes the predicted ll needed for the first iteration of the algorithm
@@ -353,11 +362,11 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         K = model.covar_module
 
         Cff = K.forward(x, x)
-        
+        cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])
         
         #cov_noise = likelihood._shaped_noise_covar([g_theta.shape[0],g_theta.shape[0]]).evaluate()
         
-        C11 = K.forward(g_theta, g_theta) #+ cov_noise
+        C11 = K.forward(g_theta, g_theta) + cov_noise1
         Cf1 = K.forward(x, g_theta)
         rhs_g = agg_data - (mu.forward(g_theta)).flatten()
         mu_x = mu.forward(x)
