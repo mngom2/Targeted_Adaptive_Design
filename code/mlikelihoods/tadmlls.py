@@ -64,7 +64,9 @@ class MarginalLogLikelihood(ExactMarginalLogLikelihood):
         C11= K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise1
 
         #covar = output_ll.lazy_covariance_matrix
+     
         m0 = m0.reshape(agg_data.shape)
+     
         diff = agg_data - m0
 #        if diff.shape[:-1] != covar.batch_shape:
 #            print('error shape')
@@ -74,7 +76,7 @@ class MarginalLogLikelihood(ExactMarginalLogLikelihood):
         N = C11.shape[1]
         
         #val = output_ll.log_prob(agg_data)
-        return 1./N * (-.5 * logdet_C11 - .5 * inv_quad_C11 ) #, inv_quad_C11 val # val #
+        return 1./N * (-.5 * logdet_C11 - .5 * inv_quad_C11 ) , inv_quad_C11 # val # val #
         
         
     

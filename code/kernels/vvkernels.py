@@ -29,7 +29,7 @@ class TensorProductKernel(MultitaskKernel):
             covar_i = covar_i.repeat(*x1.shape[:-2], 1, 1)
         covar_x = gpytorch.lazy.lazify(self.data_covar_module.forward(x1, x2, **params))#(self.data_covar_module.forward(x1, x2, **params))#
         if (add_jitter == True):
-            covar_x = covar_x #+ (1e-8) * torch.eye(covar_x.shape[0])
+            covar_x = covar_x #+ (1e-6) * torch.eye(covar_x.shape[0])
         res=gpytorch.lazy.KroneckerProductLazyTensor(covar_x, covar_i) #gpytorch.lazy.lazify(torch.kron(covar_x, covar_i))
 
         return res.diag() if diag else res

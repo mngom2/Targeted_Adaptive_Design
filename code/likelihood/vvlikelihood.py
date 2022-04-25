@@ -31,7 +31,11 @@ max_cholesky_size._set_value(3000)
 
 
 def barrierFunction(x, low, high, c):
-    return c * ( (torch.max(Tensor([0.]), (-x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (-x[0,1] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,1] - 3.))) ** 2.)
+    out = 0.
+    n = x.shape[0]
+    for i in range(n):
+        out = out + c * ( (torch.max(Tensor([0.]), (-x[i,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[i,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (-x[i,1] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[i,1] - 3.))) ** 2.)
+    return out #c * ( (torch.max(Tensor([0.]), (-x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (-x[0,1] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,1] - 3.))) ** 2.)
 
 class TensorProductLikelihood(MultitaskGaussianLikelihood):
     """
@@ -71,7 +75,7 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         
 
         
-    def get_ell(self, agg_data, f_target, x, g_theta1, g_theta2, model, likelihood,noise_value): #, cov_noise1, cov_noise2):
+    def get_ell(self, agg_data, f_target, x, g_theta1, model, likelihood,noise_value, g_theta2): #, cov_noise1, cov_noise2):
 
         """
         computes the expected ll
@@ -158,7 +162,7 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         N = C11.shape[0]
 
         ell = -1./2. * (  logdet_Qf12 +  inv_quad_Qf12 +   trace_term ) #- (Qf1[0,0]**2 + Qf1[0,0]**2)
-        ell = ell -  barrierFunction(x, -3., 3., .01)
+        ell = ell -  barrierFunction(x, -3., 3., 1000.) #-  barrierFunction(g_theta2, -3., 3., 0.01)
         lower_bound = torch.zeros(pf1.shape)
         upper_bound = torch.zeros(pf1.shape)
        
@@ -166,7 +170,7 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
             lower_bound[i] = pf1[i] -  torch.sqrt(Qf1[i,i])
             upper_bound[i] = pf1[i] + torch.sqrt(Qf1[i,i])
         
-        return ell, pf1, Qf1, Qf12
+        return ell, pf1, Qf1, Qf12, logdet_Qf12 +  inv_quad_Qf12
         
     def get_inv_quad(self, mat, fdata, g_theta, data_12, x, model, noise_value):
 
@@ -250,7 +254,8 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
         super().__init__(noises)
         
-    def get_ell(self, agg_data, f_target, x, g_theta1, g_theta2, model, likelihood, noise_value): #, cov_noise1, cov_noise2):
+    def get_ell(self, agg_data, f_target,x_, g_theta1, model, likelihood, noise_value, g_theta2): #, cov_noise1, cov_noise2):
+    #def get_ell(self, agg_data, f_target, g_theta1, model, likelihood, noise_value, samples): #, cov_noise1, cov_noise2):
 
         """
         computes the expected ll
@@ -259,6 +264,20 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
        
         #cov_noisex = noise_value * torch.eye(2* x.shape[0])
         #with gpytorch.settings.fast_pred_var():
+#
+#        x_ = samples[0:g_theta1.shape[1]]
+#        try:
+#            x_ = Tensor(x_.reshape(math.ceil(x_.shape[0]/g_theta1.shape[1]), g_theta1.shape[1]))
+#        except:
+#            print(samples.shape)
+#            print(x_.shape)
+#            print(g_theta1.shape[1])
+#            print(samples[0])
+#            print(samples[0][0:g_theta1.shape[1]])
+#            raise
+#        g_theta2 = samples[g_theta1.shape[1]:]
+#        g_theta2 = Tensor(g_theta2.reshape(math.ceil(g_theta2.shape[0]/g_theta1.shape[1]), g_theta1.shape[1]))
+
         
         cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])
         cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
@@ -267,14 +286,14 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         K = model.covar_module
 
 
-        Cff = K.forward(x,x, add_jitter = True)  #+ cov_noisex
+        Cff = K.forward(x_,x_, add_jitter = True)  #+ cov_noisex
        
-        Cf1 = K.forward(x,g_theta1)
+        Cf1 = K.forward(x_,g_theta1)
         C11 = K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise1
         
         
         
-        Cf2 = K.forward(x, g_theta2)
+        Cf2 = K.forward(x_, g_theta2)
         
         C12 = K.forward(g_theta1, g_theta2)
         C22 = K.forward(g_theta2, g_theta2, add_jitter = True) + cov_noise2
@@ -287,7 +306,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
         rhs_g1 = rhs_g1.reshape(rhs_g1.shape, 1)
         
-        mean_x = mu.forward(x)
+        mean_x = mu.forward(x_)
       
         mean_x = torch.flatten(mean_x)  #mean_x.reshape(mean_x.shape[0] * mean_x.shape[1], 1)
         
@@ -301,9 +320,10 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
 #        print('here q21 ell')
 #
-#        print( torch.symeig(Q21.evaluate()) )
+       # Q21 =  Q21.add_jitter(1e-8)
+       # print( torch.symeig(Q21.evaluate()) )
         
-        #Q21 =  Q21.add_jitter(1e-8)
+        #
         
         C1f = Cf1.t()
         
@@ -318,38 +338,58 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
 
         try:
             #with gpytorch.settings.cholesky_jitter(self.custom_jitter):
-            Qf12_sec_term = Q21.inv_matmul(second_term_Qf12.evaluate(), second_term_Qf12.t().evaluate())
+            Qf12_sec_term = (Q21).inv_matmul(second_term_Qf12.evaluate(), second_term_Qf12.t().evaluate())
         except:
 
             raise
         
         Qf12 = Qf1 - Qf12_sec_term
-        #Qf12 =  Qf12.add_jitter(1e-8)
+       # Qf12 =  Qf12.add_jitter(1e-8)
+        #print( torch.symeig(Qf12.evaluate()) )
+        logdet_Qf12 = Qf12.logdet()
+        
+       
         pf1 = pf1.reshape(f_target.shape)
+       
         
         
         try:
             #with gpytorch.settings.cholesky_jitter(self.custom_jitter):
-            inv_quad_Qf12 = Qf12.inv_matmul(f_target - pf1,  (f_target - pf1).t())
+            inv_quad_Qf12 = (Qf12).inv_matmul(f_target - pf1,  (f_target - pf1).t())
         except:
 
             raise
-     
-        logdet_Qf12 = Qf12.logdet()
+
+        
         # simplified trace expression
-        trace_term_arg = gpytorch.inv_matmul(Qf12,Qf12_sec_term) #Qf12.matmul(Qf12_sec_term) #
-        #trace_term_arg = gpytorch.inv_matmul(Qf12,Qf1.evaluate())
+        #trace_term_arg = gpytorch.inv_matmul(Qf12,Qf12_sec_term) #Qf12.matmul(Qf12_sec_term) #
+        trace_term_arg = gpytorch.inv_matmul(Qf12,Qf1.evaluate())
         diag_trace_term_arg = trace_term_arg.diag()
 
         trace_term = diag_trace_term_arg.sum()
         #N = Qf12.shape[0]
+        
+#        print('T')
+#        print(Qf1.logdet())
+#        print(logdet_Qf12)
+#        print(inv_quad_Qf12)
+#        print(trace_term)
+#
+##        print( 0.5 * torch.log(torch.det(Cff.evaluate()) / torch.det(Qf1.evaluate())))
+##        print( 0.5 * torch.log(torch.det(Cff.evaluate()) / torch.det(Qf12.evaluate())) )
+##        print( 0.5 * torch.log(torch.det(Qf1.evaluate()) / torch.det(Qf12.evaluate())) )
+##        print(Qf12_sec_term)
+##        print(torch.det(Qf12_sec_term))
+#        print('end T')
 
-        ell = -1./2. * ( logdet_Qf12 + inv_quad_Qf12 + trace_term)
-        ell = ell - barrierFunction(x, -3., 3., .01)
+        ell = -1./2. * (  logdet_Qf12 + inv_quad_Qf12 +  trace_term)
+    
+        #print(barrierFunction(x_, -3., 3., 1000.)  -  barrierFunction(g_theta2, -3., 3., 1000.))
+        ell = ell #- barrierFunction(x_, -3., 3., 100000.)  -  barrierFunction(g_theta2, -3., 3., 100000.)
         
         
 #        print(pf1 - f_target)
-        return ell, pf1, Qf1, Qf12
+        return ell, pf1, Qf1, Qf12, logdet_Qf12 +  inv_quad_Qf12, Q21
 
     def get_pll(self, f_target, x,g_theta, agg_data, model, likelihood,  noise_value):
 
@@ -383,8 +423,52 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         inv_quad_Q, logdet_Q = Q.inv_quad_logdet(f_target - m, logdet = True)
 
         pll = 1./2. * (logdet_Q + inv_quad_Q)
-        pll = pll - barrierFunction(x, -3., 3., .01)
+        pll = pll - barrierFunction(x, -3., 3., 100000.)
         #pll = torch.linalg.norm((f_target - m), ord = 2)  #
+        lower_bound = torch.zeros(m.shape)
+        upper_bound = torch.zeros(m.shape)
+       
+        for i in range(m.shape[0]):
+            lower_bound[i] = m[i] -  torch.sqrt(Q[i,i])
+            upper_bound[i] = m[i] +  torch.sqrt(Q[i,i])
+
+        return pll, lower_bound, upper_bound
+        
+        
+    def get_l2(self, f_target, x,g_theta, agg_data, model, likelihood,  noise_value):
+
+        """
+        computes the predicted ll needed for the first iteration of the algorithm
+
+        """
+
+        mu = model.mean_module
+        K = model.covar_module
+
+        Cff = K.forward(x, x)
+        cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])
+        
+        #cov_noise = likelihood._shaped_noise_covar([g_theta.shape[0],g_theta.shape[0]]).evaluate()
+        
+        C11 = K.forward(g_theta, g_theta) + cov_noise1
+        Cf1 = K.forward(x, g_theta)
+        rhs_g = agg_data - (mu.forward(g_theta)).flatten()
+        mu_x = mu.forward(x)
+        
+        
+        mu_x = mu_x.flatten()
+        C1f = Cf1.t()
+        #with gpytorch.settings.cholesky_jitter(self.custom_jitter):
+        m = mu_x + C11.inv_matmul(rhs_g, Cf1.evaluate())
+
+        #with gpytorch.settings.cholesky_jitter(self.custom_jitter):
+        Q = Cff - C11.inv_matmul(C1f.evaluate(), Cf1.evaluate())
+        m = m.reshape(f_target.shape)
+        inv_quad_Q, logdet_Q = Q.inv_quad_logdet(f_target - m, logdet = True)
+
+        pll = 1./2. * (logdet_Q + inv_quad_Q)
+        #pll = pll - barrierFunction(x, -3., 3., 100000.)
+        pll = torch.linalg.norm((f_target - m), ord = 2)  #
         lower_bound = torch.zeros(m.shape)
         upper_bound = torch.zeros(m.shape)
        
@@ -443,11 +527,60 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
         pf12 = pf12.reshape(fdata.shape)
         
+        
         diff = fdata - pf12
-        #print(diff.shape)
-        #diff = diff.reshape(diff.shape[0], 1)
+#        print(diff.shape)
+#        diff = diff.reshape(diff.shape[0], 1)
         inv_quad, logdet_C11 = gpytorch.inv_quad_logdet(mat.evaluate(), diff, logdet=True)
         return inv_quad
+        
+        
+    def get_p21(self,g_theta1, g_theta2, data, model, noise_value):
+
+        cov_noise =  noise_value * torch.eye(data.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
+        #cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
+        K = model.covar_module
+        mu = model.mean_module
+        C21 = K.forward(g_theta2, g_theta1)
+        
+        C11 = K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise
+        
+        rhs_g = data - torch.flatten(mu.forward(g_theta1))
+        rhs_g = rhs_g.reshape(rhs_g.shape, 1)
+        
+        mean2 = mu.forward(g_theta2)
+      
+        mean2 = torch.flatten(mean2)
+       
+        p21 = mean2.reshape(mean2.shape, 1) + C11.inv_matmul(rhs_g, C21.evaluate())
+        return p21
+        
+    def get_pf12(self, Q21,g_theta1, g_theta2, x, data2, pf1,p21, model, noise_value):
+
+        cov_noise =  noise_value * torch.eye(2 * g_theta1.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
+        #cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
+        K = model.covar_module
+        mu = model.mean_module
+        C12 = K.forward(g_theta1, g_theta2)
+        
+        C11 = K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise
+        
+        Cx1 = K.forward(x, g_theta1)
+        Cx2 = K.forward(x, g_theta2)
+        
+        rhs_g = data2 - p21
+        rhs_g = rhs_g.reshape(rhs_g.shape[0], 1)
+        
+        lhs = Cx2 - C11.inv_matmul(C12.evaluate(), Cx1.evaluate())
+       
+        pf12 = pf1 + Q21.inv_matmul(rhs_g, lhs.evaluate())
+
+        
+        #p21 = p21.reshape(data.shape)
+        
+        
+        
+        return pf12
 
         
         

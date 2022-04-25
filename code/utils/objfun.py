@@ -24,7 +24,7 @@ class ObjFun(object):
     """
 #########################################
     def __init__(self, D=2, N = 2, low = -3., high = 3.,  tgt_loc=Tensor(np.array([[0.8731,0.5664]])),
-                 tgt_vec = Tensor(np.array([3.0173/8.9280,3.1267/8.9280]))):
+                 tgt_vec = Tensor(np.array([3.0173,3.1267]))):
 
         self.tgt_loc = tgt_loc
         self.tgt_vec= tgt_vec
@@ -42,8 +42,8 @@ class ObjFun(object):
         J1 = J1.reshape(J1.shape[0], 1)
         J2 = J2.reshape(J2.shape[0], 1)
         
-        Vf_1 = J1/8.9280
-        Vf_2 = J2/8.9280
+        Vf_1 = J1 #/8.9280
+        Vf_2 = J2 #/8.9280
         
         return torch.cat((Vf_1, Vf_2),1)
     
