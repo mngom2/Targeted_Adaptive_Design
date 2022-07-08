@@ -6,8 +6,10 @@ import torch
 from torch import nn
 from torch import Tensor
 import gpytorch
-from gpytorch.likelihoods import MultitaskGaussianLikelihood, _MultitaskGaussianLikelihoodBase, _GaussianLikelihoodBase,MultitaskFixedNoiseGaussianLikelihood
-from gpytorch.likelihoods.noise_models import MultitaskHomoskedasticNoise, FixedGaussianNoise, Noise, MultitaskFixedGaussianNoise
+from gpytorch.likelihoods import MultitaskGaussianLikelihood, _MultitaskGaussianLikelihoodBase, _GaussianLikelihoodBase
+from gpytorch.likelihoods.noise_models import MultitaskHomoskedasticNoise, FixedGaussianNoise, Noise
+from .noise_models_multitask_fixed_gaussian import MultitaskFixedGaussianNoise
+from .likelihoods_multitask_fixed_gaussian import MultitaskFixedNoiseGaussianLikelihood
 from gpytorch.distributions import base_distributions
 from gpytorch.settings import max_cholesky_size
 from gpytorch.lazy import ZeroLazyTensor, DiagLazyTensor

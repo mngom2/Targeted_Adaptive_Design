@@ -5,9 +5,6 @@ import string
 
 import torch
 import gpytorch
-from gpytorch.likelihoods import MultitaskGaussianLikelihood, _MultitaskGaussianLikelihoodBase, _GaussianLikelihoodBase,MultitaskFixedNoiseGaussianLikelihood
-from gpytorch.likelihoods.noise_models import MultitaskHomoskedasticNoise, FixedGaussianNoise, Noise, MultitaskFixedGaussianNoise
-from gpytorch.distributions import base_distributions
 from gpytorch.settings import max_cholesky_size
 from gpytorch.lazy import ZeroLazyTensor, DiagLazyTensor
 from gpytorch.utils.warnings import GPInputWarning
