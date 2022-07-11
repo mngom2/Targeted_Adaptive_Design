@@ -18,7 +18,7 @@ from .vvkernels import TensorProductKernel
 
 class SepTensorProductKernel(Kernel):
     """
-    Class to get the tensorproduct kernel
+    Class to get the sum of kronecker product kernel
     """
 
     def __init__(

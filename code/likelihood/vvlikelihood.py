@@ -41,7 +41,7 @@ def barrierFunction(x, low, high, c):
 
 class TensorProductLikelihood(MultitaskGaussianLikelihood):
     """
-    Class to get the Likelihood
+    Class to get the different loss function for fitted noise (i.e not fixed noise)
     """
     def __init__(self, num_tasks,
         task_prior=None,
@@ -175,6 +175,10 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         return ell, pf1, Qf1, Qf12, logdet_Qf12 +  inv_quad_Qf12
         
     def get_inv_quad(self, mat, fdata, g_theta, data_12, x, model, noise_value):
+    
+    """
+     Computes the inverse quadratic formula (fdata - mean)^T mat^{-1}(fdata - mean)
+    """
 
         cov_noise =  noise_value * torch.eye(data_12.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
         #cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
@@ -210,7 +214,7 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
     def get_pll(self, f_target, x,g_theta, agg_data, model, likelihood):
 
         """
-        computes the predicted ll needed for the first iteration of the algorithm
+        computes the predictive ll
 
         """
 
@@ -251,6 +255,10 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         
         
 class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihood):
+"""
+Onjective functions for the Multitask fixed noise likelihood case
+
+"""
 
     def __init__(self, noises, **kwargs):
         
@@ -260,7 +268,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
     #def get_ell(self, agg_data, f_target, g_theta1, model, likelihood, noise_value, samples): #, cov_noise1, cov_noise2):
 
         """
-        computes the expected ll
+        computes the expected ll (TAD optimization function)
 
         """
        
@@ -396,7 +404,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
     def get_pll(self, f_target, x,g_theta, agg_data, model, likelihood,  noise_value):
 
         """
-        computes the predicted ll needed for the first iteration of the algorithm
+        computes the predictive ll
 
         """
 

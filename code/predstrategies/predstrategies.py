@@ -14,7 +14,14 @@ gpytorch.settings.max_cg_iterations(100)
 gpytorch.settings.max_preconditioner_size(100)
 max_cholesky_size._set_value(3000)
 
+
+
 class GPprediction(object):
+
+"""
+Class to get predictive mean and predictive covariance (ss Rasmussen's book)
+
+"""
     def __init__(self,model):
         self.cov = model.covar_module
         self.mean = model.mean_module

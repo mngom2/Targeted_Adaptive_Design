@@ -32,7 +32,7 @@ max_cholesky_size._set_value(3000)
 
 class MarginalLogLikelihood(ExactMarginalLogLikelihood):
     """
-    Class to get the mll
+    Class to get the mll to be optimized to tune the GP hyperparameter
     """
     
     def __init__(self, likelihood, model):

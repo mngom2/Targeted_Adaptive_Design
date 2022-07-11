@@ -18,7 +18,7 @@ def postprocess_rbf(dist_mat):
 
 class vvkRBFKernel(RBFKernel):
     """
-    Class to get the tensorproduct kernel
+    Class to get rbf without in-place operations
     """
 
     has_lengthscale = True
@@ -32,7 +32,7 @@ class vvkRBFKernel(RBFKernel):
             or params.get("last_dim_is_batch", False)
             or trace_mode.on()
         ):
-            x1_ = x1.clone().div(self.lengthscale)
+            x1_ = x1.clone().div(self.lengthscale) #no in place op
             
             x2_ = x2.clone().div(self.lengthscale)
             

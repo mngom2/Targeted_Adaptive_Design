@@ -13,7 +13,9 @@ from gpytorch.means import MultitaskMean
 from functools import partial
 from matplotlib import pyplot as plt
 
-
+"""
+custom means
+"""
 
 class TensorProductSubMean(MultitaskMean):
     """
