@@ -48,3 +48,25 @@ pip install gpytorch
 ```
 If GPytorch finishes download with pytorch, numpy, etc. already satisfied, we're good. If it downloads them as well, there is a problem (and consider exit the compute node, come back again, rm -r the virtual environment folder you just created and do it again). We want to use ThetaGPU's packages (Pytorch, etc.) if it already exists. Not our own. --system-site-packages should tell it to link to the existing system packages and not downloading them in the virtual environment.
 
+## After the First Time
+After the first time, to run the files, simply activate the python_venv with 
+```
+module load conda/2022-07-01
+source path_to_myenv/bin/activate
+``` 
+once on a compute node
+
+## Using Jupyter Notebook to Run GPytorch on ThetaGPU
+Now we know how to run jobs from the terminal. But sometimes we may want to run things with Jupyter Notebook. Here is the guide:
+1. Go to [Jupyter Hub of ALCF](https://jupyter.alcf.anl.gov/), click Login ThetaGPU
+2. Queue up for a "single-gpu". single-gpu should always work. If not, try again or run qstat from a terminal on service node of ThetaGPU to see the current jobs and queue. full-node might not work on ThetaGPU
+3. Once on a compute node, click "New" and open a **terminal**
+4. Run 
+``` 
+module load conda/2022-07-01
+source <path_to_previously_created_python_venv>/bin/activate
+python -m ipykernel install --user --name python_venv
+```
+Note: depending on the system and environment, you might need to install the "ipykernel" package first. The python_venv that I just created has the ipykernel module.
+
+Go back to your .ipynb file, change kernel to python_venv from the dropdown menu, and we'll be good to run GPytorch!
