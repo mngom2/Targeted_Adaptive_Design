@@ -173,12 +173,11 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
             upper_bound[i] = pf1[i] + torch.sqrt(Qf1[i,i])
         
         return ell, pf1, Qf1, Qf12, logdet_Qf12 +  inv_quad_Qf12
-        
-    def get_inv_quad(self, mat, fdata, g_theta, data_12, x, model, noise_value):
     
     """
-     Computes the inverse quadratic formula (fdata - mean)^T mat^{-1}(fdata - mean)
+    Computes the inverse quadratic formula (fdata - mean)^T mat^{-1}(fdata - mean)
     """
+    def get_inv_quad(self, mat, fdata, g_theta, data_12, x, model, noise_value):
 
         cov_noise =  noise_value * torch.eye(data_12.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
         #cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
@@ -253,12 +252,11 @@ class TensorProductLikelihood(MultitaskGaussianLikelihood):
         return pll, lower_bound, upper_bound
         
         
-        
-class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihood):
 """
 Onjective functions for the Multitask fixed noise likelihood case
+""" 
+class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihood):
 
-"""
 
     def __init__(self, noises, **kwargs):
         
