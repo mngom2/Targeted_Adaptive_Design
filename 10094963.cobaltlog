@@ -1,0 +1,5 @@
+Jobid: 10094963
+qsub -A datascience -q single-gpu -n 2 -t 30 -I
+Tue Jul 26 23:06:19 2022 +0000 (UTC) submitted with cwd set to: /lus/grand/projects/datascience/tiany/Targeted_Adaptive_Design
+jobid 10094963 submitted from terminal /dev/pts/6
+Tue Jul 26 23:14:06 2022 +0000 (UTC) Info: user delete requested; removing job from the queue
