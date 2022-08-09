@@ -262,7 +262,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
         super().__init__(noises)
         
-    def get_ell(self, agg_data, f_target,x_, g_theta1, model, likelihood, noise_value, g_theta2): #, cov_noise1, cov_noise2):
+    def get_ell(self, agg_data, f_target,x_, g_theta1, model, likelihood, g_theta2, cov_noise1, cov_noise2):
     #def get_ell(self, agg_data, f_target, g_theta1, model, likelihood, noise_value, samples): #, cov_noise1, cov_noise2):
 
         """
@@ -286,9 +286,9 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
 #        g_theta2 = samples[g_theta1.shape[1]:]
 #        g_theta2 = Tensor(g_theta2.reshape(math.ceil(g_theta2.shape[0]/g_theta1.shape[1]), g_theta1.shape[1]))
 
-        
-        cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])
-        cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
+        # Move these two to jupyter notebook Conv_Success
+#         cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])
+#         cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
 #
         mu = model.mean_module
         K = model.covar_module
@@ -304,6 +304,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         Cf2 = K.forward(x_, g_theta2)
         
         C12 = K.forward(g_theta1, g_theta2)
+        
         C22 = K.forward(g_theta2, g_theta2, add_jitter = True) + cov_noise2
         mean_data = mu.forward(g_theta1)
         #mean_data = mean_data.reshape(agg_data.shape)
@@ -393,7 +394,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         ell = -1./2. * (  logdet_Qf12 + inv_quad_Qf12 +  trace_term)
     
         #print(barrierFunction(x_, -3., 3., 1000.)  -  barrierFunction(g_theta2, -3., 3., 1000.))
-        ell = ell - barrierFunction(x_, -3., 3., 100000.)  -  barrierFunction(g_theta2, -3., 3., 100000.)
+#         ell = ell - barrierFunction(x_, -3., 3., 100000.)  -  barrierFunction(g_theta2, -3., 3., 100000.) for testing
         
         
 #        print(pf1 - f_target)
@@ -443,7 +444,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         return pll, lower_bound, upper_bound
         
         
-    def get_l2(self, f_target, x,g_theta, agg_data, model, likelihood,  noise_value):
+    def get_l2(self, f_target, x,g_theta, agg_data, model, likelihood, noise_value):
 
         """
         computes the predicted ll needed for the first iteration of the algorithm

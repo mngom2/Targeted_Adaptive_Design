@@ -40,7 +40,7 @@ class MarginalLogLikelihood(ExactMarginalLogLikelihood):
             raise RuntimeError("Likelihood must be Gaussian for exact inference")
         super(ExactMarginalLogLikelihood, self).__init__(likelihood, model)
         
-    def forward(self, agg_data, g_theta1,  model, likelihood, noise_value):
+    def forward(self, agg_data, g_theta1,  model, likelihood, cov_noise1):
         r"""
         Computes the MLL given :math:`p(\mathbf f)` and :math:`\mathbf y`.
 
@@ -50,7 +50,8 @@ class MarginalLogLikelihood(ExactMarginalLogLikelihood):
         :rtype: torch.Tensor
         :return: Exact MLL. Output shape corresponds to batch shape of the model/input data.
         """
-        cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
+        # move the cov_noise1 to jupyter notebook Conv_Success
+#         cov_noise1 =  noise_value * torch.eye(agg_data.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
 
         #output = model(g_theta1)
         #output_ll = likelihood(output)
