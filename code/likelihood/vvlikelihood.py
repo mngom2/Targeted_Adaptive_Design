@@ -397,7 +397,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         ell = -1./2. * (  logdet_Qf12 + inv_quad_Qf12 +  trace_term)
     
         #print(barrierFunction(x_, -3., 3., 1000.)  -  barrierFunction(g_theta2, -3., 3., 1000.))
-        ell = ell - barrierFunction(x_, -3., 3., 100000.)  -  barrierFunction(g_theta2, -3., 3., 100000.)
+        ell = ell - barrierFunction(x_, -1., 1., 10000.)  -  barrierFunction(g_theta2, -1., 1., 10000.)
         
         
 #        print(pf1 - f_target)
