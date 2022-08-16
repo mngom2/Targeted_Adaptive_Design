@@ -35,8 +35,11 @@ max_cholesky_size._set_value(3000)
 def barrierFunction(x, low, high, c):
     out = 0.
     n = x.shape[0]
+    zero_tensor = Tensor([0.])
+    if torch.cuda.is_available():
+        zero_tensor = zero_tensor.cuda()
     for i in range(n):
-        out = out + c * ( (torch.max(Tensor([0.]), (-x[i,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[i,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (-x[i,1] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[i,1] - 3.))) ** 2.)
+        out = out + c * ( (torch.max(zero_tensor, (-x[i,0] - 3.))) ** 2. + (torch.max(zero_tensor, (x[i,0] - 3.))) ** 2. + (torch.max(zero_tensor, (-x[i,1] - 3.))) ** 2. + (torch.max(zero_tensor, (x[i,1] - 3.))) ** 2.)
     return out #c * ( (torch.max(Tensor([0.]), (-x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (-x[0,1] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,1] - 3.))) ** 2.)
 
 class TensorProductLikelihood(MultitaskGaussianLikelihood):
@@ -394,7 +397,7 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         ell = -1./2. * (  logdet_Qf12 + inv_quad_Qf12 +  trace_term)
     
         #print(barrierFunction(x_, -3., 3., 1000.)  -  barrierFunction(g_theta2, -3., 3., 1000.))
-#         ell = ell - barrierFunction(x_, -3., 3., 100000.)  -  barrierFunction(g_theta2, -3., 3., 100000.) for testing
+        ell = ell - barrierFunction(x_, -3., 3., 100000.)  -  barrierFunction(g_theta2, -3., 3., 100000.)
         
         
 #        print(pf1 - f_target)
@@ -554,6 +557,10 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         
         C11 = K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise
         
+        device = g_theta1.device
+        C11 = C11.to(device)
+        C21 = C21.to(device)
+        
         rhs_g = data - torch.flatten(mu.forward(g_theta1))
         rhs_g = rhs_g.reshape(rhs_g.shape, 1)
         
@@ -568,6 +575,8 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
 
         cov_noise =  noise_value * torch.eye(2 * g_theta1.shape[0])    #likelihood._shaped_noise_covar([ agg_data.shape[0],
         #cov_noise2 =  noise_value * torch.eye(2 * g_theta2.shape[0])
+        device = g_theta1.device
+        cov_noise = cov_noise.to(device)
         K = model.covar_module
         mu = model.mean_module
         C12 = K.forward(g_theta1, g_theta2)
