@@ -35,9 +35,7 @@ max_cholesky_size._set_value(3000)
 def barrierFunction(x, low, high, c):
     out = 0.
     n = x.shape[0]
-    zero_tensor = Tensor([0.])
-    if torch.cuda.is_available():
-        zero_tensor = zero_tensor.cuda()
+    zero_tensor = Tensor([0.]).to(x.device)
     for i in range(n):
         out = out + c * ( (torch.max(zero_tensor, (-x[i,0] - 3.))) ** 2. + (torch.max(zero_tensor, (x[i,0] - 3.))) ** 2. + (torch.max(zero_tensor, (-x[i,1] - 3.))) ** 2. + (torch.max(zero_tensor, (x[i,1] - 3.))) ** 2.)
     return out #c * ( (torch.max(Tensor([0.]), (-x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,0] - 3.))) ** 2. + (torch.max(Tensor([0.]), (-x[0,1] - 3.))) ** 2. + (torch.max(Tensor([0.]), (x[0,1] - 3.))) ** 2.)
