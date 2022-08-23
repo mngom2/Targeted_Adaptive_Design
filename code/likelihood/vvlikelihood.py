@@ -31,6 +31,7 @@ gpytorch.settings.max_preconditioner_size(100)
 max_cholesky_size._set_value(3000)
 #gpytorch.settings.fast_pred_var(False)
 
+use_cuda = torch.cuda.is_available()
 
 def barrierFunction(x, low, high, c):
     out = 0.
@@ -293,10 +294,11 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
 #
         mu = model.mean_module
         K = model.covar_module
+        if use_cuda:
+            mu = mu.cuda()
+            K = K.cuda()
 
-
-        Cff = K.forward(x_,x_, add_jitter = True)  #+ cov_noisex
-       
+        Cff = K.forward(x_,x_, add_jitter = True)  #+ cov_noise
         Cf1 = K.forward(x_,g_theta1)
         C11 = K.forward(g_theta1, g_theta1, add_jitter = True) + cov_noise1
         
