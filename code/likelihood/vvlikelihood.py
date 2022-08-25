@@ -295,8 +295,8 @@ class FixedNoiseMultitaskGaussianLikelihood(MultitaskFixedNoiseGaussianLikelihoo
         mu = model.mean_module
         K = model.covar_module
         if use_cuda:
-            mu = mu.cuda()
-            K = K.cuda()
+            mu = mu.to(x_.device)
+            K = K.to(x_.device)
 
         Cff = K.forward(x_,x_, add_jitter = True)  #+ cov_noise
         Cf1 = K.forward(x_,g_theta1)
