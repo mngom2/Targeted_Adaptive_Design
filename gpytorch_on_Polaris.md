@@ -86,9 +86,10 @@ You should see a line like `http://localhost:XXXX/`, where XXXX is the port numb
 export PORT_NUM=8889
 ssh -L $PORT_NUM:localhost:8888 <yourusername@polaris.alcf.anl.gov>
 ssh -L 8888:localhost:8888 your_compute_node
+navigate to localhost:8889 in your browser
+``` 
 
-
-3. Finally, navigate to localhost:8889 in your browser, and you should see a jupyter notebook
+You should see a jupyter notebook
 Notice that for the first time doing this, one might need to input some password or weird key. Just follow the direction on that page.
 
 (Essentially, the above steps, using ssh, sets the local port 8889 to listen to the allocated compute node port 8888 which we initiated a jupyter notebook.)
