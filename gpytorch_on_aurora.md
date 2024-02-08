@@ -6,7 +6,9 @@ Login to Aurora
 ssh <username>@bastion.alcf.anl.gov
 ```
 Then, after entering your passcode
+```
 ssh <username>@login.aurora.alcf.anl.gov
+```
 
 (We are supposion you already set the environment variables that provide access to the proxy host. )
 
