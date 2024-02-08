@@ -38,12 +38,12 @@ source env_gpytorch/bin/activate
 and do `source activation_env.sh` to activate your environment for subsequent runs.
 
 ## Running on GPUs
-To run on GPUs, one needs to add
+To run on GPUs, one needs to add to code
 ```
 import intel_extension_for_pytorch as ipex
  ```
 and 
-set the device as follows:
+set the device as follows in the code:
 
 ```
 if torch.cuda.is_available():
