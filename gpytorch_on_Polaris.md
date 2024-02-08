@@ -25,7 +25,7 @@ If queueing for an interactive session, once it is running, we can use `qstat -u
 
 Load the Conda Environment (Module) with Pytorch, since our GPytorch has Pytorch dependency
 ```
-module load conda/pytorch
+module load conda
 conda activate
 ```
 * Notice that we can check the available modules with "module avail" and check the loaded modules with "module list"
