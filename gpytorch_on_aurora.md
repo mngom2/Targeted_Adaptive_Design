@@ -12,7 +12,7 @@ ssh <username>@login.aurora.alcf.anl.gov
 
 (We are supposion you already set the environment variables that provide access to the proxy host. )
 
-Start a sessiom, for example Interactive ssh Session on a Compute Node
+Start a session, for example Interactive ssh Session on a Compute Node
 ```
 qsub -I -q EarlyAppAccess -l select=1,walltime=60:00 -A Aurora_deployment
 ```
