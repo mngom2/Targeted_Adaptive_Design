@@ -10,7 +10,7 @@ Then, after entering your passcode
 ssh <username>@login.aurora.alcf.anl.gov
 ```
 
-(We are supposing you already set the environment variables that provide access to the proxy host. )
+(We are supposing you already set the environment variables that provide access to the proxy host. Go to docs/aurora/getting-started-on-aurora.md for more information)
 
 Start a session, for example Interactive ssh Session on a Compute Node
 ```
