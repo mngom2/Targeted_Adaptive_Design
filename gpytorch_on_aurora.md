@@ -10,14 +10,12 @@ Then, after entering your passcode
 ssh <username>@login.aurora.alcf.anl.gov
 ```
 
-(We are supposion you already set the environment variables that provide access to the proxy host. )
+(We are supposing you already set the environment variables that provide access to the proxy host. )
 
 Start a session, for example Interactive ssh Session on a Compute Node
 ```
-qsub -I -q EarlyAppAccess -l select=1,walltime=60:00 -A Aurora_deployment
+qsub -I -q [your_Queue] -l select=1,walltime=60:00 -A [your_ProjectName]
 ```
-
-
 
 #### 2. Once on a Compute Node, Load Modules
 
@@ -29,6 +27,7 @@ source env_gpytorch/bin/activate
 python3 -m pip install gpytorch
 ```
 
+#### Optional
 Create a 'activation_env.sh' file that contains
 ```
 module use /soft/modulefiles
