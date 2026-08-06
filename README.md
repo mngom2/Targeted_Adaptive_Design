@@ -1,16 +1,8 @@
 # Targeted Adaptive Design (TAD)
 
-Reference implementation for **_Targeted Adaptive Design_**, C. Graziani and M. Ngom,
-*SIAM/ASA Journal on Uncertainty Quantification* **12**(4), 1273–1314 (2024)
-([doi:10.1137/22M149898X](https://epubs.siam.org/doi/10.1137/22M149898X),
-[arXiv:2205.14208](https://arxiv.org/abs/2205.14208)). The preprint PDF is in
-[`paper/`](paper/). See [Citation](#citation) below.
-
-TAD locates optimal control settings that generate desired design features within
-specified tolerances, with quantified uncertainty, by building a Gaussian-process
-surrogate of an unknown control→design map and optimizing the expected
-log-predictive-probability density of the target design at each iteration. It is
-built on [GPyTorch](https://gpytorch.ai/).
+Bayesian active learning for advanced manufacturing and materials design.
+The method and code are described at https://epubs.siam.org/doi/pdf/10.1137/22M149898X, and also on ArXiV at https://arxiv.org/abs/2205.14208 
+See [Citation](#citation) below.
 
 ## Installation
 
